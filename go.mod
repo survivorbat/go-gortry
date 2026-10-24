@@ -1,4 +1,4 @@
-module github.com/survivorbat/go-reroute
+module github.com/survivorbat/go-gortry
 
 go 1.27
 

@@ -24,7 +24,7 @@ type Config struct {
 	// 100 milliseconds is required.
 	MaxInterval time.Duration
 
-	// Timeout is the total amount of time a retry may take, this overrides MaxAttempts
+	// Timeout refers to the amount of time we should keep retrying, it does not affect the query itself.
 	Timeout time.Duration
 
 	// IntervalMultiplier is the multiplier applied to each attempt's interval, until it hits
@@ -37,7 +37,7 @@ const (
 	defaultInterval           = time.Second
 	defaultMaxInterval        = time.Second * 30
 	defaultIntervalMultiplier = 1.5
-	defaultTimeout            = time.Second * 60
+	defaultTimeout            = time.Minute
 )
 
 func DefaultConfig() *Config {
@@ -62,7 +62,7 @@ func (c *Config) validate() error {
 	}
 
 	if c.Timeout < time.Second {
-		errs = append(errs, fmt.Errorf("timeout can not be lower than a second: %w", ErrInvalidConfig))
+		errs = append(errs, fmt.Errorf("timeout must not be lower than %v: %w", time.Second, ErrInvalidConfig))
 	}
 
 	if c.IntervalMultiplier < 1 {

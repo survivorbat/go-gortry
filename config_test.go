@@ -40,7 +40,7 @@ func TestConfig_Validate_ReturnsErrorOnInvalidValues(t *testing.T) {
 	expected := []string{
 		"max attempts must at least be 1",
 		"max interval must be higher than 100ms",
-		"timeout can not be lower than a second",
+		"timeout must not be lower than 1s",
 		"interval must be higher than 100ms",
 		"interval multiplier must not be lower than 1",
 	}

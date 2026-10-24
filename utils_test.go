@@ -31,7 +31,7 @@ func TestIsRetryable(t *testing.T) {
 			expected: true,
 		},
 		"safe to retry error": {
-			input:    retryError{},
+			input:    RetryError{},
 			expected: true,
 		},
 		"pg error 08000": {
@@ -107,12 +107,17 @@ func TestIsTransaction_ReturnsTrueIfSo(t *testing.T) {
 	assert.True(t, actual)
 }
 
-type retryError struct{}
+type RetryError struct{}
 
-func (r retryError) SafeToRetry() bool {
+func (r RetryError) SafeToRetry() bool {
 	return true
 }
 
-func (r retryError) Error() string {
+func (r RetryError) Error() string {
 	return "retryable"
+}
+
+func (r RetryError) Is(err error) bool {
+	_, ok := err.(RetryError)
+	return ok
 }

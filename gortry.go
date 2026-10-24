@@ -21,6 +21,11 @@ type Plugin struct {
 
 // New instantiates the plugin with the given config options
 func New(cfg *Config) (*Plugin, error) {
+	err := cfg.validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+
 	return &Plugin{cfg: cfg}, nil
 }
 
@@ -39,7 +44,7 @@ func (p *Plugin) Initialize(db *gorm.DB) error {
 	}
 
 	originalRow := db.Callback().Query().Get("gorm:row")
-	err = db.Callback().Query().Replace("gorm:row", p.wrap(originalRow, callbacks.RowQuery))
+	err = db.Callback().Row().Replace("gorm:row", p.wrap(originalRow, callbacks.RowQuery))
 	if err != nil {
 		return fmt.Errorf("failed to register row callback: %w", err)
 	}
@@ -55,7 +60,12 @@ func (p *Plugin) wrap(original func(*gorm.DB), fallback func(*gorm.DB)) func(*go
 	}
 
 	return func(tx *gorm.DB) {
-		timeout := time.After(p.cfg.Timeout)
+		timeout := make(<-chan time.Time, 1) // Dummy timeout
+
+		// If a timeout is set, use a timer, if not, continue to use the dummy version
+		if p.cfg.Timeout != 0 {
+			timeout = time.After(p.cfg.Timeout)
+		}
 
 		for attempt := 1; attempt <= p.cfg.MaxAttempts; attempt++ {
 			callback(tx)
@@ -64,22 +74,23 @@ func (p *Plugin) wrap(original func(*gorm.DB), fallback func(*gorm.DB)) func(*go
 				return
 			}
 
-			delay := time.After(p.cfg.intervalFor(attempt))
+			wait := time.After(p.cfg.intervalFor(attempt))
 
 			select {
 			case <-tx.Statement.Context.Done():
-				// Give up, context is cancelled
 				return
 
 			case <-timeout:
-				// Give up, timed out
 				return
 
-			case <-delay:
+			case <-wait:
 				// Next attempt
 			}
 
-			tx.Error = nil
+			// Don't reset the error when max attempts reached
+			if p.cfg.MaxAttempts != attempt {
+				tx.Error = nil
+			}
 		}
 	}
 }
